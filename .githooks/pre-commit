@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook: keep API keys / secrets out of commits.
+#
+#   1) For staged env files (.env, .env.local, .env.*, EXCEPT .env.example),
+#      strip secret VALUES from the *staged* copy only. Your working-tree file
+#      is left untouched, so you keep your real keys locally.
+#
+#   2) Abort the commit if a secret-looking token is found in any other staged
+#      file. Override (not recommended) with:  git commit --no-verify
+#
+set -euo pipefail
+
+RED=''; YEL=''; GRN=''; NC=''
+if [ -t 1 ]; then RED='\033[31m'; YEL='\033[33m'; GRN='\033[32m'; NC='\033[0m'; fi
+
+# Common secret token shapes (OpenAI, Perplexity, Tavily, AWS, Google, GitHub, Slack).
+secret_value_re='(sk-[A-Za-z0-9_-]{16,}|pplx-[A-Za-z0-9]{16,}|tvly-[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[A-Za-z0-9-]{10,})'
+
+# Env var names that hold secrets (anything ending KEY/TOKEN/SECRET/PASSWORD/etc.).
+env_secret_name_re='^([A-Za-z_][A-Za-z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|CREDENTIALS))=.+'
+
+is_env_file() {
+  case "$(basename "$1")" in
+    .env.example) return 1 ;;
+    .env|.env.*)  return 0 ;;
+    *)            return 1 ;;
+  esac
+}
+
+redacted_any=0
+violations=""
+
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+
+  if is_env_file "$f"; then
+    # Redact secret values in the STAGED blob only (working file untouched).
+    staged_content=$(git show ":$f" 2>/dev/null || true)
+    [ -z "$staged_content" ] && continue
+
+    new_content=$(printf '%s' "$staged_content" \
+      | sed -E "s/$env_secret_name_re/\1=/I" \
+      | sed -E "/$secret_value_re/ s/^([A-Za-z_][A-Za-z0-9_]*)=.*/\1=/")
+
+    if [ "$new_content" != "$staged_content" ]; then
+      blob=$(printf '%s\n' "$new_content" | git hash-object -w --stdin)
+      mode=$(git ls-files --stage -- "$f" | awk '{print $1}')
+      [ -z "$mode" ] && mode=100644
+      git update-index --cacheinfo "$mode" "$blob" "$f"
+      printf "${YEL}\xe2\x9c\x8e Redacted secret values from staged %s (local file unchanged).${NC}\n" "$f"
+      redacted_any=1
+    fi
+    continue
+  fi
+
+  # Non-env file: scan only the ADDED lines for secret tokens.
+  added=$(git diff --cached --no-color -U0 -- "$f" | grep -E '^\+' | grep -vE '^\+\+\+' || true)
+  if printf '%s' "$added" | grep -Eq "$secret_value_re"; then
+    violations="$violations $f"
+  fi
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -n "$violations" ]; then
+  printf "${RED}\xe2\x9c\x96 Potential API key/secret detected in staged changes:${NC}\n"
+  for v in $violations; do printf "   - %s\n" "$v"; done
+  printf "Remove the secret, or move it into .env (which is git-ignored).\n"
+  printf "Override (NOT recommended): git commit --no-verify\n"
+  exit 1
+fi
+
+if [ "$redacted_any" -eq 1 ]; then
+  printf "${GRN}\xe2\x9c\x94 Secrets scrubbed from staged env files.${NC}\n"
+fi
+
+exit 0

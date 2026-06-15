@@ -1,0 +1,21 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+sse-starlette==2.2.1
+
+# LangGraph / LangChain
+langgraph==0.2.61
+langchain==0.3.14
+langchain-core==0.3.29
+langchain-openai==0.2.14
+
+# Data sources
+yfinance==1.4.1
+curl_cffi==0.15.0
+tavily-python==0.5.0
+ddgs==9.0.0
+beautifulsoup4==4.12.3
+lxml==5.3.0
+httpx==0.28.1

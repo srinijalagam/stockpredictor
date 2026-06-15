@@ -1,0 +1,38 @@
+services:
+  agent:
+    build:
+      context: ./agent
+    image: stockpredictor-agent:latest
+    container_name: stockpredictor-agent
+    # All config comes from .env. We intentionally do NOT redeclare these here:
+    # passing through commented-out vars (e.g. OPENAI_BASE_URL) as empty strings
+    # would override defaults and break the OpenAI client (empty base URL).
+    env_file:
+      - .env
+    ports:
+      - "${AGENT_PORT:-8000}:8000"
+    restart: unless-stopped
+    networks:
+      - stocknet
+
+  ui:
+    build:
+      context: ./ui
+    image: stockpredictor-ui:latest
+    container_name: stockpredictor-ui
+    environment:
+      # Tells nginx where to proxy /api. Swap to point at a different
+      # agent implementation without rebuilding the UI image.
+      AGENT_HOST: agent
+      AGENT_PORT: "8000"
+    ports:
+      - "${UI_PORT:-3000}:80"
+    depends_on:
+      - agent
+    restart: unless-stopped
+    networks:
+      - stocknet
+
+networks:
+  stocknet:
+    driver: bridge
