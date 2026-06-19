@@ -18,6 +18,12 @@ with a recommendation, confidence, strong reasons, and risks.
 
 ---
 
+## Screenshot
+
+![Stock Predictor UI — live prediction for AAPL showing the agent thought process, entry/exit plans, reasons, risks, and trusted sources](docs/ui-screenshot.png)
+
+---
+
 ## Architecture
 
 Two **independent services** (so the agent can be swapped later):
