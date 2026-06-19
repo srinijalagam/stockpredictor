@@ -1,5 +1,10 @@
 # Stock Predictor — AI timing agent
 
+> ### 🚀 Live demo — [**jalagam-stockpredictor.hf.space**](https://jalagam-stockpredictor.hf.space/)
+> **Try it now, no setup required.** Just enter a ticker (e.g. `AAPL`) or a company
+> name and watch the agent work. *(Free hosting — the first request after it's been
+> idle may take ~30–60s to wake up.)*
+
 An AI agent that takes a **stock ticker or company name** and predicts **when to
 buy and sell** — with concrete **price ranges**, **time windows**, strong
 grounded reasons, the agent's thought process, and the **sources** it used.
